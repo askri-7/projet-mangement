@@ -1,0 +1,213 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8">
+  <title>Calculatrices financières</title>
+  <link rel="stylesheet" href="/style.css">
+</head>
+<body>
+  <header>
+    <h1>Calculatrices financières</h1>
+    <p>MCV / Point mort / VAN</p>
+  </header>
+
+  <main>
+    <!-- Calculatrice 1 : MCV, BAII, BAI, Revenu net -->
+    <section class="card">
+      <h2>Calcul MCV et Résultats</h2>
+      <form id="form-mcv">
+        <div class="grid-2">
+          <label>
+            Chiffre d'affaires
+            <input type="number" step="0.01" name="chiffreAffaires" required>
+          </label>
+          <label>
+            Coût variable total
+            <input type="number" step="0.01" name="coutVariable" required>
+          </label>
+          <label>
+            Charges fixes d'exploitation
+            <input type="number" step="0.01" name="chargesFixesExpl" required>
+          </label>
+          <label>
+            Charges financières
+            <input type="number" step="0.01" name="chargesFinancieres" required>
+          </label>
+          <label>
+            Taux d'impôt (%)
+            <input type="number" step="0.01" name="tauxImpot" required>
+          </label>
+        </div>
+        <button type="submit">Calculer</button>
+      </form>
+
+      <div id="result-mcv" class="result"></div>
+    </section>
+
+    <!-- Calculatrice 2 : Point mort -->
+    <section class="card">
+      <h2>Calcul du point mort</h2>
+      <form id="form-point-mort">
+        <div class="grid-2">
+          <label>
+            Charges fixes
+            <input type="number" step="0.01" name="chargesFixes" required>
+          </label>
+          <label>
+            Prix de vente unitaire
+            <input type="number" step="0.01" name="prixVente" required>
+          </label>
+          <label>
+            Coût variable unitaire
+            <input type="number" step="0.01" name="coutVariableUnitaire" required>
+          </label>
+        </div>
+        <button type="submit">Calculer</button>
+      </form>
+
+      <div id="result-point-mort" class="result"></div>
+    </section>
+
+    <!-- Calculatrice 3 : VAN -->
+    <section class="card">
+      <h2>Calcul de la VAN</h2>
+      <form id="form-van">
+        <div class="grid-2">
+          <label>
+            Investissement initial
+            <input type="number" step="0.01" name="investissementInitial" required>
+          </label>
+          <label>
+            Cash-flow annuel
+            <input type="number" step="0.01" name="cashFlowAnnuel" required>
+          </label>
+          <label>
+            Taux d'actualisation (%)
+            <input type="number" step="0.01" name="tauxActualisation" required>
+          </label>
+          <label>
+            Durée (années)
+            <input type="number" step="1" name="duree" required>
+          </label>
+        </div>
+        <button type="submit">Calculer</button>
+      </form>
+
+      <div id="result-van" class="result"></div>
+    </section>
+  </main>
+
+  <script>
+    async function postJSON(url, data) {
+      const res = await fetch(url, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(data)
+      });
+
+      if (!res.ok) {
+        throw new Error('Erreur serveur: ' + res.status);
+      }
+      return res.json();
+    }
+
+    // MCV
+    document.getElementById('form-mcv').addEventListener('submit', async (e) => {
+      e.preventDefault();
+      const form = e.target;
+
+      const data = {
+        chiffreAffaires: Number(form.chiffreAffaires.value),
+        coutVariable: Number(form.coutVariable.value),
+        chargesFixesExpl: Number(form.chargesFixesExpl.value),
+        chargesFinancieres: Number(form.chargesFinancieres.value),
+        tauxImpot: Number(form.tauxImpot.value)
+      };
+
+      try {
+        const result = await postJSON('/api/calculer-mcv', data);
+        const div = document.getElementById('result-mcv');
+        div.innerHTML = `
+          <h3>Résultats</h3>
+          <ul>
+            <li>MCV : <strong>${result.mcv.toFixed(2)}</strong></li>
+            <li>Taux MCV : <strong>${result.tauxMCV.toFixed(2)} %</strong></li>
+            <li>BAII : <strong>${result.baii.toFixed(2)}</strong></li>
+            <li>BAI : <strong>${result.bai.toFixed(2)}</strong></li>
+            <li>Impôts : <strong>${result.impots.toFixed(2)}</strong></li>
+            <li>Revenu net : <strong>${result.revenuNet.toFixed(2)}</strong></li>
+          </ul>
+          <p>${result.interpretationMCV}</p>
+          <p>${result.interpretationBAII}</p>
+          <p>${result.interpretationBAI}</p>
+          <p><strong>${result.interpretationFinale}</strong></p>
+        `;
+      } catch (err) {
+        document.getElementById('result-mcv').innerHTML =
+          `<p class="error">${err.message}</p>`;
+      }
+    });
+
+    // Point mort
+    document.getElementById('form-point-mort').addEventListener('submit', async (e) => {
+      e.preventDefault();
+      const form = e.target;
+
+      const data = {
+        chargesFixes: Number(form.chargesFixes.value),
+        prixVente: Number(form.prixVente.value),
+        coutVariableUnitaire: Number(form.coutVariableUnitaire.value)
+      };
+
+      try {
+        const result = await postJSON('/api/calculer-point-mort', data);
+        const div = document.getElementById('result-point-mort');
+
+        if (result.erreur) {
+          div.innerHTML = `<p class="error">${result.erreur}</p>`;
+          return;
+        }
+
+        div.innerHTML = `
+          <h3>Résultats</h3>
+          <ul>
+            <li>Marge de contribution unitaire : <strong>${result.margeContribution}</strong></li>
+            <li>Point mort (quantité) : <strong>${result.pointMort}</strong> unités</li>
+            <li>Chiffre d'affaires critique : <strong>${result.chiffreAffaireCritique}</strong></li>
+          </ul>
+        `;
+      } catch (err) {
+        document.getElementById('result-point-mort').innerHTML =
+          `<p class="error">${err.message}</p>`;
+      }
+    });
+
+    // VAN
+    document.getElementById('form-van').addEventListener('submit', async (e) => {
+      e.preventDefault();
+      const form = e.target;
+
+      const data = {
+        investissementInitial: Number(form.investissementInitial.value),
+        cashFlowAnnuel: Number(form.cashFlowAnnuel.value),
+        tauxActualisation: Number(form.tauxActualisation.value),
+        duree: Number(form.duree.value)
+      };
+
+      try {
+        const result = await postJSON('/api/calculer-van', data);
+        const div = document.getElementById('result-van');
+        div.innerHTML = `
+          <h3>Résultats</h3>
+          <p>VAN : <strong>${result.van}</strong></p>
+          <p>${result.decision}</p>
+          <p>${result.interpretation}</p>
+        `;
+      } catch (err) {
+        document.getElementById('result-van').innerHTML =
+          `<p class="error">${err.message}</p>`;
+      }
+    });
+  </script>
+</body>
+</html>
